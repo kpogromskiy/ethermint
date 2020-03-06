@@ -61,6 +61,17 @@ func (e *PublicEthAPI) ProtocolVersion() hexutil.Uint {
 	return hexutil.Uint(version.ProtocolVersion)
 }
 
+// GetTransactionDataByHash returns the transaction raw data identified by hash.
+func (e *PublicEthAPI) GetTransactionDataByHash(hash common.Hash) (hexutil.Bytes, error) {
+	tx, err := e.cliCtx.Client.Tx(hash.Bytes(), false)
+	if err != nil {
+		// Return nil for transaction when not found
+		return nil, nil
+	}
+
+	return (hexutil.Bytes)(tx.Tx), nil
+}
+
 // Syncing returns whether or not the current node is syncing with other peers. Returns false if not, or a struct
 // outlining the state of the sync if it is.
 func (e *PublicEthAPI) Syncing() (interface{}, error) {
