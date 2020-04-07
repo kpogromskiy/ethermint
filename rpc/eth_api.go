@@ -61,17 +61,6 @@ func (e *PublicEthAPI) ProtocolVersion() hexutil.Uint {
 	return hexutil.Uint(version.ProtocolVersion)
 }
 
-// GetTransactionDataByHash returns the transaction raw data identified by hash.
-func (e *PublicEthAPI) GetTransactionDataByHash(hash common.Hash) (hexutil.Bytes, error) {
-	tx, err := e.cliCtx.Client.Tx(hash.Bytes(), false)
-	if err != nil {
-		// Return nil for transaction when not found
-		return nil, nil
-	}
-
-	return (hexutil.Bytes)(tx.Tx), nil
-}
-
 // Syncing returns whether or not the current node is syncing with other peers. Returns false if not, or a struct
 // outlining the state of the sync if it is.
 func (e *PublicEthAPI) Syncing() (interface{}, error) {
@@ -290,7 +279,7 @@ func (e *PublicEthAPI) SendTransaction(args params.SendTxArgs) (common.Hash, err
 	intChainID, ok := new(big.Int).SetString(chainID, 10)
 	if !ok {
 		return common.Hash{}, fmt.Errorf(
-			fmt.Sprintf("Invalid chainID: %s, must be integer format", chainID))
+			fmt.Sprintf("invalid chainID: %s, must be integer format", chainID))
 	}
 
 	// Sign transaction
@@ -603,7 +592,7 @@ func bytesToEthTx(cliCtx context.CLIContext, bz []byte) (*types.EthereumTxMsg, e
 	err := cliCtx.Codec.UnmarshalBinaryLengthPrefixed(bz, &stdTx)
 	ethTx, ok := stdTx.(*types.EthereumTxMsg)
 	if !ok || err != nil {
-		return nil, fmt.Errorf("Invalid transaction type, must be an amino encoded Ethereum transaction")
+		return nil, fmt.Errorf("invalid transaction type, must be an amino encoded Ethereum transaction")
 	}
 	return ethTx, nil
 }
@@ -657,6 +646,33 @@ func (e *PublicEthAPI) GetTransactionByHash(hash common.Hash) (*Transaction, err
 
 	height := uint64(tx.Height)
 	return newRPCTransaction(ethTx, blockHash, &height, uint64(tx.Index)), nil
+}
+
+// GetTransactionDataByHash returns the transaction raw data identified by hash.
+func (e *PublicEthAPI) GetTransactionDataByHash(hash common.Hash) (hexutil.Bytes, error) {
+	// defer func() {
+	// 	if r := recover(); r != nil {
+	// 		tx, _ := e.cliCtx.Client.Tx(hash.Bytes(), false)
+	// 		ethTx, _ := bytesToEthTx(e.cliCtx, tx.Tx)
+	// 		rlp.EncodeToBytes(ethTx)
+	// 	}
+	// }()
+	// panic("break")
+	tx, err := e.cliCtx.Client.Tx(hash.Bytes(), false)
+	if err != nil {
+		return nil, err
+	}
+
+	ethTx, err := bytesToEthTx(e.cliCtx, tx.Tx)
+	if err != nil {
+		return nil, err
+	}
+	bytes, err := rlp.EncodeToBytes(ethTx)
+	if err != nil {
+		return nil, err
+	}
+
+	return (hexutil.Bytes)(bytes), nil
 }
 
 // GetTransactionByBlockHashAndIndex returns the transaction identified by hash and index.
